@@ -64,6 +64,9 @@ register message *m_ptr;	/* pointer to request message */
   rpc->p_ticks_left = (rpc->p_ticks_left + 1) / 2;
   rpp->p_ticks_left =  rpp->p_ticks_left / 2;	
 
+  /* The child process musnt have any quanta completed */
+  rpc->p_quanta_completed = 0;
+  
   /* If the parent is a privileged process, take away the privileges from the 
    * child process and inhibit it from running by setting the NO_PRIV flag.
    * The caller should explicitely set the new privileges before executing.

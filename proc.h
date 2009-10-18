@@ -101,6 +101,10 @@ struct proc {
 
   struct proc *next_soft_notify;
   int p_softnotified;
+  
+  int p_quanta_completed;		/* Representative value of total quanta completed
+								 * for RR scheduling
+								 */
 
 #if DEBUG_SCHED_CHECK
   int p_ready, p_found;
@@ -177,11 +181,14 @@ struct proc {
  * priority) and increment.  Priorities of the processes in the boot image 
  * can be set in table.c. IDLE must have a queue for itself, to prevent low 
  * priority user processes to run round-robin with IDLE. 
+ *
+ * For RR scheduling, we increase NR_SCHED_QUEUES to 19. Then we set USER_Q to default to
+ * queue 16, then every x quanta, we increase to 17, and 18 as needed.
  */
-#define NR_SCHED_QUEUES   16	/* MUST equal minimum priority + 1 */
+#define NR_SCHED_QUEUES   19	/* MUST equal minimum priority + 1 */
 #define TASK_Q		   0	/* highest, used for kernel tasks */
 #define MAX_USER_Q  	   0    /* highest priority for user processes */   
-#define USER_Q  	   7    /* default (should correspond to nice 0) */   
+#define USER_Q  	   16    /* default (should correspond to nice 0) */   
 #define MIN_USER_Q	  14	/* minimum priority for user processes */
 #define IDLE_Q		  15    /* lowest, only IDLE process goes here */
 

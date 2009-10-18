@@ -1225,12 +1225,34 @@ int *front;					/* return: front or back */
    * lowest queue.  
    */
   if (! time_left) {				/* quantum consumed ? */
+      if (rp->p_quanta_completed < 20) rp->p_quanta_completed++;		/* Increase quanta completed */
       rp->p_ticks_left = rp->p_quantum_size; 	/* give new quantum */
       if (rp->p_priority < (IDLE_Q-1)) {  	 
           rp->p_priority += 1;			/* lower priority */
       }
   }
-
+  
+  /* If we have completed >= 5 quanta in this go-round, set the tasks
+   * priority to queue 17.
+   * If we have completed >= 10 quanta, set the tasks priority to
+   * queue 18.
+   * If we have completed 20 quanta, jump back to queue 16
+   */
+  if ((rp->p_priv->s_flags & SYS_PROC))
+  {
+  }
+  else if (rp->p_quanta_completed >= 5 && rp->p_quanta_completed < 10)
+  {
+    rp->p_priority = 17;
+  }
+  else if (rp->p_quanta_completed >= 10 && rp->p_quanta_completed < 20)
+  {
+    rp->p_priority = 18;
+  }
+  else if (rp->p_quanta_completed >= 20)
+  {
+    rp->p_priority = 16;
+  }
   /* If there is time left, the process is added to the front of its queue, 
    * so that it can immediately run. The queue to use simply is always the
    * process' current priority. 
@@ -1255,7 +1277,8 @@ PRIVATE void pick_proc()
    * queues is defined in proc.h, and priorities are set in the task table.
    * The lowest queue contains IDLE, which is always ready.
    */
-  for (q=0; q < NR_SCHED_QUEUES; q++) {	
+  for (q=0; q < NR_SCHED_QUEUES; q++) {
+	  if (q == 15) continue;
       if ( (rp = rdy_head[q]) != NIL_PROC) {
           next_ptr = rp;			/* run process 'rp' next */
 #if 0
@@ -1267,6 +1290,19 @@ PRIVATE void pick_proc()
           return;				 
       }
   }
+  /* Process queue 15, IDLE */
+  q = 15;
+  if ( (rp = rdy_head[q]) != NIL_PROC) {
+    next_ptr = rp;			/* run process 'rp' next */
+#if 0
+	if(rp->p_endpoint != 4 && rp->p_endpoint != 5 && rp->p_endpoint != IDLE && rp->p_endpoint != SYSTEM)
+	  kprintf("[run %s]",  rp->p_name);
+#endif
+    if (priv(rp)->s_flags & BILLABLE)	 	
+      bill_ptr = rp;			/* bill for system time */
+    return;				 
+  }
+  
   minix_panic("no ready process", NO_NUM);
 }
 
