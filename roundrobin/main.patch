@@ -1,0 +1,116 @@
+diff --git a/proc.c b/proc.c
+index 221342e..bb3d854 100644
+--- a/proc.c
++++ b/proc.c
+@@ -1225,34 +1225,12 @@ int *front;					/* return: front or back */
+    * lowest queue.  
+    */
+   if (! time_left) {				/* quantum consumed ? */
+-      if (rp->p_quanta_completed < 20) rp->p_quanta_completed++;		/* Increase quanta completed */
+       rp->p_ticks_left = rp->p_quantum_size; 	/* give new quantum */
+       if (rp->p_priority < (IDLE_Q-1)) {  	 
+           rp->p_priority += 1;			/* lower priority */
+       }
+   }
+-  
+-  /* If we have completed >= 5 quanta in this go-round, set the tasks
+-   * priority to queue 17.
+-   * If we have completed >= 10 quanta, set the tasks priority to
+-   * queue 18.
+-   * If we have completed 20 quanta, jump back to queue 16
+-   */
+-  if ((rp->p_priv->s_flags & SYS_PROC))
+-  {
+-  }
+-  else if (rp->p_quanta_completed >= 5 && rp->p_quanta_completed < 10)
+-  {
+-    rp->p_priority = 17;
+-  }
+-  else if (rp->p_quanta_completed >= 10 && rp->p_quanta_completed < 20)
+-  {
+-    rp->p_priority = 18;
+-  }
+-  else if (rp->p_quanta_completed >= 20)
+-  {
+-    rp->p_priority = 16;
+-  }
++
+   /* If there is time left, the process is added to the front of its queue, 
+    * so that it can immediately run. The queue to use simply is always the
+    * process' current priority. 
+@@ -1277,8 +1255,7 @@ PRIVATE void pick_proc()
+    * queues is defined in proc.h, and priorities are set in the task table.
+    * The lowest queue contains IDLE, which is always ready.
+    */
+-  for (q=0; q < NR_SCHED_QUEUES; q++) {
+-	  if (q == 15) continue;
++  for (q=0; q < NR_SCHED_QUEUES; q++) {	
+       if ( (rp = rdy_head[q]) != NIL_PROC) {
+           next_ptr = rp;			/* run process 'rp' next */
+ #if 0
+@@ -1290,19 +1267,6 @@ PRIVATE void pick_proc()
+           return;				 
+       }
+   }
+-  /* Process queue 15, IDLE */
+-  q = 15;
+-  if ( (rp = rdy_head[q]) != NIL_PROC) {
+-    next_ptr = rp;			/* run process 'rp' next */
+-#if 0
+-	if(rp->p_endpoint != 4 && rp->p_endpoint != 5 && rp->p_endpoint != IDLE && rp->p_endpoint != SYSTEM)
+-	  kprintf("[run %s]",  rp->p_name);
+-#endif
+-    if (priv(rp)->s_flags & BILLABLE)	 	
+-      bill_ptr = rp;			/* bill for system time */
+-    return;				 
+-  }
+-  
+   minix_panic("no ready process", NO_NUM);
+ }
+ 
+diff --git a/proc.h b/proc.h
+index 1141ac2..df90bfe 100644
+--- a/proc.h
++++ b/proc.h
+@@ -101,10 +101,6 @@ struct proc {
+ 
+   struct proc *next_soft_notify;
+   int p_softnotified;
+-  
+-  int p_quanta_completed;		/* Representative value of total quanta completed
+-								 * for RR scheduling
+-								 */
+ 
+ #if DEBUG_SCHED_CHECK
+   int p_ready, p_found;
+@@ -181,14 +177,11 @@ struct proc {
+  * priority) and increment.  Priorities of the processes in the boot image 
+  * can be set in table.c. IDLE must have a queue for itself, to prevent low 
+  * priority user processes to run round-robin with IDLE. 
+- *
+- * For RR scheduling, we increase NR_SCHED_QUEUES to 19. Then we set USER_Q to default to
+- * queue 16, then every x quanta, we increase to 17, and 18 as needed.
+  */
+-#define NR_SCHED_QUEUES   19	/* MUST equal minimum priority + 1 */
++#define NR_SCHED_QUEUES   16	/* MUST equal minimum priority + 1 */
+ #define TASK_Q		   0	/* highest, used for kernel tasks */
+ #define MAX_USER_Q  	   0    /* highest priority for user processes */   
+-#define USER_Q  	   16    /* default (should correspond to nice 0) */   
++#define USER_Q  	   7    /* default (should correspond to nice 0) */   
+ #define MIN_USER_Q	  14	/* minimum priority for user processes */
+ #define IDLE_Q		  15    /* lowest, only IDLE process goes here */
+ 
+diff --git a/system/do_fork.c b/system/do_fork.c
+index 0d57530..a365ab7 100644
+--- a/system/do_fork.c
++++ b/system/do_fork.c
+@@ -64,9 +64,6 @@ register message *m_ptr;	/* pointer to request message */
+   rpc->p_ticks_left = (rpc->p_ticks_left + 1) / 2;
+   rpp->p_ticks_left =  rpp->p_ticks_left / 2;	
+ 
+-  /* The child process musnt have any quanta completed */
+-  rpc->p_quanta_completed = 0;
+-  
+   /* If the parent is a privileged process, take away the privileges from the 
+    * child process and inhibit it from running by setting the NO_PRIV flag.
+    * The caller should explicitely set the new privileges before executing.
